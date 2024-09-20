@@ -71,9 +71,12 @@ laptop.df<-read.csv('LaptopSalesJanuary2008.csv')
 head(laptop.df)
 laptop.df$Store.Postcode=factor(laptop.df$Store.Postcode, levels=unique(laptop.df$Store.Postcode))
 laptop.df$OS.X.Store =factor(laptop.df$OS.X.Store , levels=unique(laptop.df$OS.X.Store))
-laptop.df.avg=aggregate(laptop.df$Retail.Price,FUN=mean,by=list(laptop.df$OS.X.Store))
+laptop.df.avg=aggregate(laptop.df$Retail.Price,FUN=mean,by=list(laptop.df$Store.Postcode))
+laptop.df.sum=aggregate(laptop.df$Retail.Price,FUN=sum,by=list(laptop.df$Store.Postcode))
+laptop.df.cnt=aggregate(laptop.df$Retail.Price,FUN=,by=list(laptop.df$Store.Postcode))
 names(laptop.df.avg)=c('Store','Avg_Retail_Price')
-laptop.df.avg
+names(laptop.df.sum)=c('Store','Sum_Retail_Price')
+laptop.df.sum
 ggplot(laptop.df.avg,aes(x=Store,y=Avg_Retail_Price))+
          geom_bar(stat = "identity", fill = "skyblue")+
   labs(title = 'Average Price of east Store',
@@ -82,7 +85,17 @@ ggplot(laptop.df.avg,aes(x=Store,y=Avg_Retail_Price))+
 laptop.df.avg[laptop.df.avg$Avg_Retail_Price==min(laptop.df.avg$Avg_Retail_Price),]
 laptop.df.avg[laptop.df.avg$Avg_Retail_Price==max(laptop.df.avg$Avg_Retail_Price),]
 
-
+##method 2
+library(dplyr)
+levels(laptop.df$Store.Postcode)
+avg_price.df=summarize(group_by(laptop.df,Store.Postcode),avg_val=mean(Retail.Price))
+names(avg_price.df)=c('Store','Sum_Retail_Price')
+avg_price.df
+ggplot(avg_price.df,aes(x=Store,y=Sum_Retail_Price))+
+  geom_bar(stat = "identity", fill = "skyblue")+
+  labs(title = 'Average Price of east Store',
+       x='Store Post code',
+       y='Avg. Retail Price')
 #5.b
 ggplot(laptop.df)+
   geom_boxplot(aes(x=as.factor(Store.Postcode),Retail.Price))+

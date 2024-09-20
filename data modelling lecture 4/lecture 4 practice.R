@@ -83,7 +83,7 @@ confusionMatrix(as.factor(ifelse(owner.df$Probability>0.75, 'owner', 'nonowner')
                 owner.df$Class)
 pre.melt=melt(pre$table)
 pre.melt
-
+plot.
 
 library(ggplot2)
 
