@@ -212,3 +212,113 @@ axis(1,at=c(1:12),labels = c("Jan","Feb","Mar", "Apr","May","Jun",
                              "Jul","Aug","Sep",  "Oct","Nov","Dec"))
 annual.ridership.ts=aggregate(ridership.ts,FUN=mean)
 plot(annual.ridership.ts, ylim = c(1300, 2300))
+
+
+
+# Figure 3.10
+utilities.df=read.csv('datasets/Utilities.csv')
+head(utilities.df)
+
+plot(utilities.df$Fuel_Cost~utilities.df$Sales)
+text(x=utilities.df$Sales,y=utilities.df$Fuel_Cost,labels = utilities.df$Company,pos = 4, cex = 0.8, srt = 20, offset = 0.2)
+library(ggplot2)
+ggplot(utilities.df, aes(y = Fuel_Cost, x = Sales)) + geom_point() +
+  geom_text(aes(label = paste(" ", Company)), size = 4, hjust = 0.0, angle = 15) +
+  ylim(0.25, 2.25) + xlim(3000, 18000)
+
+
+#Figure 3.11
+universal.df=read.csv('datasets/UniversalBank.csv')
+head(universal.df)
+library(scales)
+plot(jitter(universal.df$CCAvg, 1) ~ jitter(universal.df$Income, 1),
+     col = alpha(ifelse(universal.df$Securities.Account == 0, "gray", "red"), 0.4),
+     pch = 20, log = 'xy', ylim = c(0.1, 10),
+     xlab = "Income", ylab = "CCAvg")
+# alternative with ggplot
+library(ggplot2)
+ggplot(universal.df) +
+  geom_jitter(aes(x = Income, y = CCAvg, colour = Securities.Account)) + 
+  scale_x_log10(breaks = c(10, 20, 40, 60, 100, 200)) +
+  scale_y_log10(breaks = c(0.1, 0.2, 0.4, 0.6, 1.0, 2.0, 4.0, 6.0))
+#replace geom_jitter with geom_point to create without jitter to see the difference. 
+
+
+
+
+#figure 3.12
+housing.df=read.csv('datasets/BostonHousing.csv')
+library(MASS)
+par(mfcol = c(2,1)) # set graphical parameters
+parcoord(housing.df[housing.df$CAT..MEDV == 0, -14], main = "CAT.MEDV = 0")
+parcoord(housing.df[housing.df$CAT..MEDV == 1, -14], main = "CAT.MEDV = 1")
+
+
+#### Figure 3.14
+
+library(igraph)
+ebay.df <- read.csv("datasets/eBayNetwork.csv")
+
+# transform node ids to factors
+ebay.df[,1] <- as.factor(ebay.df[,1])
+ebay.df[,2] <- as.factor(ebay.df[,2])
+
+graph.edges <- as.matrix(ebay.df[,1:2])
+g <- graph.edgelist(graph.edges, directed = FALSE)
+isBuyer <- V(g)$name %in% graph.edges[,2]
+
+plot(g, vertex.label = NA, vertex.color = ifelse(isBuyer, "gray", "black"), 
+     vertex.size = ifelse(isBuyer, 7, 10))
+
+
+
+#### Figure 3.15
+
+library(treemap)
+tree.df <- read.csv("datasets/EbayTreemap.csv")
+
+# add column for negative feedback
+tree.df$negative.feedback <- 1* (tree.df$Seller.Feedback < 0)
+
+# draw treemap
+treemap(tree.df, index = c("Category","Sub.Category", "Brand"), 
+        vSize = "High.Bid", vColor = "negative.feedback", fun.aggregate = "mean",
+        align.labels = list(c("left", "top"), c("right", "bottom"), c("center", "center")),
+        palette = rev(gray.colors(3)), type = "manual", title = "")
+
+
+
+
+#### Figure 3.16
+
+# need google api key
+library(ggmap)
+SCstudents <- read.csv("datasets/SC-US-students-GPS-data-2016.csv")
+Map <- get_map("Denver, CO", zoom = 3)
+ggmap(Map) + geom_point(aes(x = longitude, y = latitude), data = SCstudents,
+                        alpha = 0.4, colour = "red", size = 0.5)
+
+
+
+#### Figure 3.17
+
+library(mosaic)
+
+gdp.df <- read.csv("datasets/gdp.csv", skip = 4, stringsAsFactors = FALSE) 
+names(gdp.df)[5] <- "GDP2015"
+happiness.df <- read.csv("datasets/Veerhoven.csv")
+
+# Convert character column to UTF-8 encoding
+gdp.df$Coun
+try.Name <- iconv(gdp.df$Country.Name, to = "UTF-8")
+
+# gdp map
+mWorldMap(gdp.df, key = "Country.Name", fill = "GDP2015") + coord_map()
+
+# Convert character column to UTF-8 encoding
+happiness.df$Nation <- iconv(happiness.df$Nation, to = "UTF-8")
+
+# well-being map
+mWorldMap(happiness.df, key = "Nation", fill = "Score") + coord_map() + 
+  scale_fill_continuous(name = "Happiness")
+
