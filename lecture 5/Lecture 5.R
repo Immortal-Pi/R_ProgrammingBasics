@@ -1,6 +1,6 @@
 #### Table 6.3
 
-car.df <- read.csv("ToyotaCorolla.csv")
+car.df <- read.csv("Lecture 5/ToyotaCorolla.csv")
 # use first 1000 rows of data
 car.df <- car.df[1:1000, ]
 # select variables for regression
