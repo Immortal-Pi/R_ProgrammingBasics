@@ -1,7 +1,9 @@
 # Final Project car price prediction
 #install.packages('dummies_1.5.6.tar.gz')
 #install.packages('corrplot')
-install.packages('factoextra')
+
+#install.packages('gbm')
+#install.packages('neuralnet')
 library(ggplot2)
 library(stringr)
 library(RColorBrewer)
@@ -11,7 +13,8 @@ library(fastDummies)
 library(corrplot)
 library(neuralnet)
 library(randomForest)
-library(factoextra) #kmeans visualization 
+
+library(gbm)
 
 #clear varaibles
 rm(list=ls())
@@ -220,7 +223,7 @@ corrplot(cor(car.df.cat), type="full",
 #car.df.cat=subset(car.df.cat,select = -seats_14)
 
 #write to csv for further use 
-write.csv(car.df.cat,file='cleaned_car_data.csv',row.names = FALSE)
+#write.csv(car.df.cat,file='cleaned_car_data.csv',row.names = FALSE)
 
 
 
@@ -247,12 +250,35 @@ pred_lr_valid=predict(m1_lr,newdata = car.df.valid)
 pred_lr_train=predict(m1_lr,newdata = car.df.train)
 error_lr_valid=car.df.valid$selling_price -pred_lr_valid
 error_lr_train=car.df.train$selling_price -pred_lr_train
+
+#RMSE
 RMSE_train=sqrt((mean(error_lr_train^2)))
 RMSE_valid=sqrt((mean(error_lr_valid^2)))
+#MAE
+mae_lr_valid=mean(abs(error_lr_valid))
+mae_lr_train=mean(abs(error_lr_train))
+#R-squared 
+sst_lr=sum((car.df.valid$selling_price-mean(car.df.valid$selling_price))^2)
+sse_lr=sum(error_lr_valid^2)
+r_squared_lr_valid=1-(sse_lr/sst_lr)
+sst_lr=sum((car.df.train$selling_price-mean(car.df.train$selling_price))^2)
+sse_lr=sum(error_lr_train^2)
+r_squared_lr_train=1-(sse_lr/sst_lr)
+
+
+qqnorm(pred_lr_valid, main = 'Q-QPlot - linear regression valid')
+qqline(pred_lr_valid,col='red')
+qqnorm(pred_lr_train, main = 'Q-QPlot - linear regression train')
+qqline(pred_lr_train,col='red')
+
 rmse_df = data.frame(
   Algorithm = c("Linear Regression"),
   Train_RMSE = c(RMSE_train),
   Valid_RMSE = c(RMSE_valid),
+  Train_MAE = c(mae_lr_train),
+  Valid_MAE = c(mae_lr_valid),
+  'R2-Train' = c(r_squared_lr_train),
+  'R2-Valid' = c(r_squared_lr_valid),
   Run_Time=end_time-start_time
 )
 print(rmse_df)
@@ -262,13 +288,15 @@ options(scipen = 999)
 plot(car.df.valid$selling_price,pred_lr_valid, main="Scatterplot Linear Regression", col = c("red","blue"), xlab = "Actual Selling Price", ylab = "Predicted Selling Price")
 #View(car.df.valid)
 
+
+
 #with normalization 
 car.df.norm=as.data.frame(sapply(car.df.cat,scale))
 write.csv(car.df.norm,file='car_cleaned_data_normalized.csv',row.names = FALSE)
 car.df.train.norm=car.df.norm[train_index,]
 car.df.valid.norm=car.df.norm[-train_index,]
 
-View(car.df.train.norm)
+#View(car.df.train.norm)
 start_time=Sys.time()
 m1_lr=lm(selling_price~., data=car.df.train.norm)
 end_time=Sys.time()
@@ -295,12 +323,31 @@ error_lr_valid=car.df.valid$selling_price -unscaled_valid
 error_lr_train=car.df.train$selling_price -unscaled_train
 RMSE_train=sqrt((mean(error_lr_train^2)))
 RMSE_valid=sqrt((mean(error_lr_valid^2)))
+#MAE
+mae_lr_valid=mean(abs(error_lr_valid))
+mae_lr_train=mean(abs(error_lr_train))
+#R-squared 
+sst_lr=sum((car.df.valid$selling_price-mean(car.df.valid$selling_price))^2)
+sse_lr=sum(error_lr_valid^2)
+r_squared_lr_valid=1-(sse_lr/sst_lr)
+sst_lr=sum((car.df.train$selling_price-mean(car.df.train$selling_price))^2)
+sse_lr=sum(error_lr_train^2)
+r_squared_lr_train=1-(sse_lr/sst_lr)
+
+qqnorm(pred_lr_valid, main = 'Q-QPlot - linear regression normalized valid')
+qqline(pred_lr_valid,col='red')
+qqnorm(pred_lr_train, main = 'Q-QPlot - linear regression normalized train')
+qqline(pred_lr_train,col='red')
 
 rmse_df = rbind(rmse_df,
                 data.frame(
   Algorithm = c("Linear Regression normalized"),
   Train_RMSE = c(RMSE_train),
   Valid_RMSE = c(RMSE_valid),
+  Train_MAE = c(mae_lr_train),
+  Valid_MAE = c(mae_lr_valid),
+  'R2-Train' = c(r_squared_lr_train),
+  'R2-Valid' = c(r_squared_lr_valid),
   Run_Time=end_time-start_time
 ))
 print(rmse_df)
@@ -323,7 +370,86 @@ plot(car.df.valid$selling_price,unscaled_valid, main="Scatterplot Normalized Lin
 
 
 
-#model 2 neural network 
+#model 2 neural network 3 hidden layer nodes 
+colnames(car.df.train.norm) <- gsub(" |_&_", "_", colnames(car.df.train.norm))
+colnames(car.df.valid.norm) <- gsub(" |_&_", "_", colnames(car.df.valid.norm))
+colnames(car.df.train.norm) <- gsub(" |_&_", "_", colnames(car.df.train.norm))
+colnames(car.df.valid.norm) <- gsub(" |_&_", "_", colnames(car.df.valid.norm))
+colnames(car.df.train) <- gsub(" |_&_", "_", colnames(car.df.train))
+colnames(car.df.valid) <- gsub(" |_&_", "_", colnames(car.df.valid))
+colnames(car.df.train) <- gsub(" |_&_", "_", colnames(car.df.train))
+colnames(car.df.valid) <- gsub(" |_&_", "_", colnames(car.df.valid))
+summary(car.df.train.norm)
+start_time=Sys.time()
+nn = neuralnet(selling_price ~ 
+                 name + year + km_driven + mileage + engine + max_power +
+                 seats + 
+                 owner_First_Owner + owner_Fourth_Above_Owner + owner_Second_Owner + 
+                 owner_Test_Drive_Car + owner_Third_Owner + 
+                 transmission_Automatic + transmission_Manual + 
+                 fuel_CNG + fuel_Diesel + fuel_LPG + fuel_Petrol + 
+                 seller_type_Dealer + seller_type_Individual + seller_type_Trustmark_Dealer, 
+               data = car.df.train.norm, 
+               hidden = 3,
+               stepmax = 1e+06)
+end_time=Sys.time()
+
+#print(end_time-start_time)
+plot(nn,rep = 'best')
+
+#upscaling the Price valuewhich was normalized
+mean_price = mean(car.df.cat$selling_price)
+sd_price = sd(car.df.cat$selling_price)
+
+unscale.price <- function(scaled.price) {
+  unscaled = scaled.price * sd_price + mean_price
+  return(unscaled)
+}
+#predict selling price on test data
+train.predict=neuralnet::compute(nn,car.df.train.norm)
+unscaled_train=unscale.price(train.predict$net.result[,1])
+valid.predict=neuralnet::compute(nn,car.df.valid.norm)
+unscaled_valid=unscale.price(valid.predict$net.result[,1])
+
+
+error_lr_valid=car.df.valid$selling_price -unscaled_valid
+error_lr_train=car.df.train$selling_price -unscaled_train
+RMSE_train=sqrt((mean(error_lr_train^2)))
+RMSE_valid=sqrt((mean(error_lr_valid^2)))
+#MAE
+mae_lr_valid=mean(abs(error_lr_valid))
+mae_lr_train=mean(abs(error_lr_train))
+#R-squared 
+sst_lr=sum((car.df.valid$selling_price-mean(car.df.valid$selling_price))^2)
+sse_lr=sum(error_lr_valid^2)
+r_squared_lr_valid=1-(sse_lr/sst_lr)
+sst_lr=sum((car.df.train$selling_price-mean(car.df.train$selling_price))^2)
+sse_lr=sum(error_lr_train^2)
+r_squared_lr_train=1-(sse_lr/sst_lr)
+
+
+rmse_df = rbind(rmse_df,
+                data.frame(
+                  Algorithm = c("Neural network - 3 hidden layers"),
+                  Train_RMSE = c(RMSE_train),
+                  Valid_RMSE = c(RMSE_valid),
+                  Train_MAE = c(mae_lr_train),
+                  Valid_MAE = c(mae_lr_valid),
+                  'R2-Train' = c(r_squared_lr_train),
+                  'R2-Valid' = c(r_squared_lr_valid),
+                  Run_Time=end_time-start_time
+                ))
+print(rmse_df)
+
+#Plotting predicted vs actual values 
+options(scipen = 999)
+plot(car.df.valid$selling_price,unscaled_valid, main="Scatterplot neural network with 3 hidden layers", col = c("red","blue"), xlab = "Actual Selling Price", ylab = "Predicted Selling Price",ylim = c(0, max(unscaled_valid)))
+
+
+
+
+
+#model 2 neural network 5 hidden layer nodes 
 colnames(car.df.train.norm) <- gsub(" |_&_", "_", colnames(car.df.train.norm))
 colnames(car.df.valid.norm) <- gsub(" |_&_", "_", colnames(car.df.valid.norm))
 colnames(car.df.train.norm) <- gsub(" |_&_", "_", colnames(car.df.train.norm))
@@ -346,6 +472,7 @@ nn = neuralnet(selling_price ~
                hidden = 5,
                stepmax = 1e+06)
 end_time=Sys.time()
+
 #print(end_time-start_time)
 plot(nn,rep = 'best')
 
@@ -358,9 +485,9 @@ unscale.price <- function(scaled.price) {
   return(unscaled)
 }
 #predict selling price on test data
-train.predict=compute(nn,car.df.train.norm)
+train.predict=neuralnet::compute(nn,car.df.train.norm)
 unscaled_train=unscale.price(train.predict$net.result[,1])
-valid.predict=compute(nn,car.df.valid.norm)
+valid.predict=neuralnet::compute(nn,car.df.valid.norm)
 unscaled_valid=unscale.price(valid.predict$net.result[,1])
 
 
@@ -368,19 +495,42 @@ error_lr_valid=car.df.valid$selling_price -unscaled_valid
 error_lr_train=car.df.train$selling_price -unscaled_train
 RMSE_train=sqrt((mean(error_lr_train^2)))
 RMSE_valid=sqrt((mean(error_lr_valid^2)))
+#MAE
+mae_lr_valid=mean(abs(error_lr_valid))
+mae_lr_train=mean(abs(error_lr_train))
+#R-squared 
+sst_lr=sum((car.df.valid$selling_price-mean(car.df.valid$selling_price))^2)
+sse_lr=sum(error_lr_valid^2)
+r_squared_lr_valid=1-(sse_lr/sst_lr)
+sst_lr=sum((car.df.train$selling_price-mean(car.df.train$selling_price))^2)
+sse_lr=sum(error_lr_train^2)
+r_squared_lr_train=1-(sse_lr/sst_lr)
+
 
 rmse_df = rbind(rmse_df,
                 data.frame(
-                  Algorithm = c("Neural network"),
+                  Algorithm = c("Neural network- 5 hidden layers"),
                   Train_RMSE = c(RMSE_train),
                   Valid_RMSE = c(RMSE_valid),
+                  Train_MAE = c(mae_lr_train),
+                  Valid_MAE = c(mae_lr_valid),
+                  'R2-Train' = c(r_squared_lr_train),
+                  'R2-Valid' = c(r_squared_lr_valid),
                   Run_Time=end_time-start_time
                 ))
 print(rmse_df)
 
 #Plotting predicted vs actual values 
 options(scipen = 999)
-plot(car.df.valid$selling_price,unscaled_valid, main="Scatterplot neural network with 3 hidden layers", col = c("red","blue"), xlab = "Actual Selling Price", ylab = "Predicted Selling Price")
+plot(car.df.valid$selling_price,unscaled_valid, main="Scatterplot neural network with 5 hidden layers", col = c("red","blue"), xlab = "Actual Selling Price", ylab = "Predicted Selling Price")
+
+
+
+
+
+
+
+
 
 
 
@@ -406,11 +556,27 @@ pred_rf_train=predict(m3_random_forest,car.df.train)
 error_rf_train=car.df.train$selling_price - pred_rf_train
 RMSE_train=sqrt(mean(error_rf_train^2))
 
+#MAE
+mae_lr_valid=mean(abs(error_rf_valid))
+mae_lr_train=mean(abs(error_rf_train))
+#R-squared 
+sst_lr=sum((car.df.valid$selling_price-mean(car.df.valid$selling_price))^2)
+sse_lr=sum(error_rf_valid^2)
+r_squared_lr_valid=1-(sse_lr/sst_lr)
+sst_lr=sum((car.df.train$selling_price-mean(car.df.train$selling_price))^2)
+sse_lr=sum(error_rf_train^2)
+r_squared_lr_train=1-(sse_lr/sst_lr)
+
+
 rmse_df = rbind(rmse_df,
                 data.frame(
                   Algorithm = c("Random forest"),
                   Train_RMSE = c(RMSE_train),
                   Valid_RMSE = c(RMSE_valid),
+                  Train_MAE = c(mae_lr_train),
+                  Valid_MAE = c(mae_lr_valid),
+                  'R2-Train' = c(r_squared_lr_train),
+                  'R2-Valid' = c(r_squared_lr_valid),
                   Run_Time=end_time-start_time
                 ))
 print(rmse_df)
@@ -436,11 +602,26 @@ unscaled_train=unscale.price(pred_rf_train)
 error_rf_train=car.df.train$selling_price - unscaled_train
 RMSE_train=sqrt(mean(error_rf_train^2))
 
+#MAE
+mae_lr_valid=mean(abs(error_rf_valid))
+mae_lr_train=mean(abs(error_rf_train))
+#R-squared 
+sst_lr=sum((car.df.valid$selling_price-mean(car.df.valid$selling_price))^2)
+sse_lr=sum(error_rf_valid^2)
+r_squared_lr_valid=1-(sse_lr/sst_lr)
+sst_lr=sum((car.df.train$selling_price-mean(car.df.train$selling_price))^2)
+sse_lr=sum(error_rf_train^2)
+r_squared_lr_train=1-(sse_lr/sst_lr)
+
 rmse_df = rbind(rmse_df,
                 data.frame(
                   Algorithm = c("Random forest normalized"),
                   Train_RMSE = c(RMSE_train),
                   Valid_RMSE = c(RMSE_valid),
+                  Train_MAE = c(mae_lr_train),
+                  Valid_MAE = c(mae_lr_valid),
+                  'R2-Train' = c(r_squared_lr_train),
+                  'R2-Valid' = c(r_squared_lr_valid),
                   Run_Time=end_time-start_time
                 ))
 print(rmse_df)
@@ -451,32 +632,144 @@ plot(car.df.valid$selling_price,unscaled_valid, main='Scatterplot random forest'
 
 
 
+#View(car.df.cat.train)
+#model gradient boosting 
+set.seed(123)
+start_time=Sys.time()
+m4_gbm=gbm(
+  formula=selling_price ~.,
+  distribution = 'gaussian',
+  data = car.df.train,
+  n.trees = 6000,
+  interaction.depth = 3,
+  shrinkage = 0.1,
+  cv.folds = 5,
+  n.cores = NULL,
+  verbose = FALSE
+)
+end_time=Sys.time()
+m4_gbm
+
+#plot loss function as a result of n trees 
+gbm.perf(m4_gbm,method = 'cv')
+
+#variance importance 
+summary(
+  m4_gbm,
+  cBars = 15,
+  method = relative.influence,
+  las=2
+)
+
+#prediction 
+
+
+#metrics
+#prediction for test and train 
+pred_rf_valid=predict(m4_gbm,car.df.valid)
+#unscaled_valid=unscale.price(pred_rf_valid)
+error_rf_valid=car.df.valid$selling_price - pred_rf_valid
+RMSE_valid=sqrt(mean(error_rf_valid^2))
+
+pred_rf_train=predict(m4_gbm,car.df.train)
+#unscaled_train=unscale.price(pred_rf_train)
+error_rf_train=car.df.train$selling_price - pred_rf_train
+RMSE_train=sqrt(mean(error_rf_train^2))
+
+#MAE
+mae_lr_valid=mean(abs(error_rf_valid))
+mae_lr_train=mean(abs(error_rf_train))
+#R-squared 
+sst_lr=sum((car.df.valid$selling_price-mean(car.df.valid$selling_price))^2)
+sse_lr=sum(error_rf_valid^2)
+r_squared_lr_valid=1-(sse_lr/sst_lr)
+sst_lr=sum((car.df.train$selling_price-mean(car.df.train$selling_price))^2)
+sse_lr=sum(error_rf_train^2)
+r_squared_lr_train=1-(sse_lr/sst_lr)
+
+rmse_df = rbind(rmse_df,
+                data.frame(
+                  Algorithm = c("Gradient Boosting"),
+                  Train_RMSE = c(RMSE_train),
+                  Valid_RMSE = c(RMSE_valid),
+                  Train_MAE = c(mae_lr_train),
+                  Valid_MAE = c(mae_lr_valid),
+                  'R2-Train' = c(r_squared_lr_train),
+                  'R2-Valid' = c(r_squared_lr_valid),
+                  Run_Time=end_time-start_time
+                ))
+print(rmse_df)
+
+#plotting predicted vs actual 
+plot(car.df.valid$selling_price,unscaled_valid,main='scatterplot gradient boosting',col=c('red','blue'),xlab='Actual selling price',ylab='Predicted selling price')
 
 
 
+# gradient boosting normalized
+set.seed(123)
+start_time=Sys.time()
+m4_gbm=gbm(
+  formula=selling_price ~.,
+  distribution = 'gaussian',
+  data = car.df.train.norm,
+  n.trees = 6000,
+  interaction.depth = 3,
+  shrinkage = 0.1,
+  cv.folds = 5,
+  n.cores = NULL,
+  verbose = FALSE
+)
+end_time=Sys.time()
+m4_gbm
+
+#plot loss function as a result of n trees 
+gbm.perf(m4_gbm,method = 'cv')
+
+#variance importance 
+summary(
+  m4_gbm,
+  cBars = 15,
+  method = relative.influence,
+  las=2
+)
+
+#prediction 
 
 
+#metrics
+#prediction for test and train 
+pred_rf_valid=predict(m4_gbm,car.df.valid.norm)
+unscaled_valid=unscale.price(pred_rf_valid)
+error_rf_valid=car.df.valid$selling_price - unscaled_valid
+RMSE_valid=sqrt(mean(error_rf_valid^2))
 
-# kmeans 
-set.seed(2)
-km=kmeans(car.df.train.norm,5)
-km$cluster
-car.df.train.norm$cluster=km$cluster
-View(car.df.train.norm)
+pred_rf_train=predict(m4_gbm,car.df.train.norm)
+unscaled_train=unscale.price(pred_rf_train)
+error_rf_train=car.df.train$selling_price - unscaled_train
+RMSE_train=sqrt(mean(error_rf_train^2))
 
-# determine and visualize optimal number of clusters
-library(factoextra)
-fviz_nbclust(data, kmeans, method = "wss") 
-fviz_nbclust(data, kmeans, method = "silhouette")
-fviz_nbclust(data, kmeans, method = "gap_stat") 
+#MAE
+mae_lr_valid=mean(abs(error_rf_valid))
+mae_lr_train=mean(abs(error_rf_train))
+#R-squared 
+sst_lr=sum((car.df.valid$selling_price-mean(car.df.valid$selling_price))^2)
+sse_lr=sum(error_rf_valid^2)
+r_squared_lr_valid=1-(sse_lr/sst_lr)
+sst_lr=sum((car.df.train$selling_price-mean(car.df.train$selling_price))^2)
+sse_lr=sum(error_rf_train^2)
+r_squared_lr_train=1-(sse_lr/sst_lr)
 
-# create cluster biplot
-fviz_cluster(kmeans(data, centers = 3, iter.max = 100, nstart = 100), data = data)
-
-# visualize clusters using original variables
-clusters <- kmeans(data, centers = 3, iter.max = 100, nstart = 100)
-Wine <- Wine |> mutate(cluster = clusters$cluster)
-Wine |> ggplot(aes(x = Rating, y = Price, col = as.factor(cluster))) + geom_point()
-
+rmse_df = rbind(rmse_df,
+                data.frame(
+                  Algorithm = c("Gradient Boosting normalized"),
+                  Train_RMSE = c(RMSE_train),
+                  Valid_RMSE = c(RMSE_valid),
+                  Train_MAE = c(mae_lr_train),
+                  Valid_MAE = c(mae_lr_valid),
+                  'R2-Train' = c(r_squared_lr_train),
+                  'R2-Valid' = c(r_squared_lr_valid),
+                  Run_Time=end_time-start_time
+                ))
+print(rmse_df)
 
 
