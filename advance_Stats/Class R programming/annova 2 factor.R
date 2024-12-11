@@ -9,6 +9,7 @@ teachers.df
 attach(teachers.df)
 a1=aov(Score ~ Teacher+Method+Teacher:Method )
 summary(a1)
+
 # mean table 
 tapply(Score, list(Method,Teacher),mean)
 interaction.plot(Teacher,Method,Score,lwd=2,col=1:3,main='Method vs Reachers')

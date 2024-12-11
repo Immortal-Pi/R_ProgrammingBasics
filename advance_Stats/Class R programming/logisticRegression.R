@@ -11,3 +11,6 @@ regout
 #survival odds for women 50 years old
 odd50=exp(regout[1]+regout[2]*50+regout[3])
 odd50
+
+ans=odd50/(1+odd50)
+ans
